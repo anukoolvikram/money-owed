@@ -39,3 +39,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+!.env.example
+
+# local database, exports, backups and credentials (never commit)
+/.pgdata/
+/exports/
+*.dump
+*.sql.gz
+ledger-backup-*.json
+ledger-transactions-*.csv
+credentials*.json
+/playwright-report/
+/test-results/
+/e2e/screenshots/
