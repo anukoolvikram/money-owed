@@ -1,26 +1,143 @@
 @import "tailwindcss";
 
+/* Theme tokens. "system" follows the device; data-theme forces light or dark. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --bg: #f6f6f3;
+  --surface: #ffffff;
+  --surface-2: #f0f0ec;
+  --border: #e2e2dc;
+  --text: #1b1c1a;
+  --muted: #62645e;
+  --accent: #1f5f4a;
+  --accent-ink: #ffffff;
+  --accent-soft: #e3efe9;
+  --in: #1f6e43;
+  --out: #9c3a2e;
+  --warn: #8a5a00;
+  --warn-soft: #fdf3dc;
+  --danger: #a3261b;
+  --danger-soft: #fbe7e4;
+  --focus: #2b6cb0;
+  --chart: #13855a;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --bg: #121412;
+    --surface: #1b1e1b;
+    --surface-2: #242824;
+    --border: #333833;
+    --text: #ecece8;
+    --muted: #a3a69f;
+    --accent: #7fcfaf;
+    --accent-ink: #0d1f18;
+    --accent-soft: #1f342b;
+    --in: #7fd3a0;
+    --out: #f0a093;
+    --warn: #f2c46b;
+    --warn-soft: #3a2e14;
+    --danger: #ff9b8f;
+    --danger-soft: #3b1d1a;
+    --focus: #8ab8ff;
+    --chart: #28a874;
+    color-scheme: dark;
   }
 }
 
+:root[data-theme="dark"] {
+  --bg: #121412;
+  --surface: #1b1e1b;
+  --surface-2: #242824;
+  --border: #333833;
+  --text: #ecece8;
+  --muted: #a3a69f;
+  --accent: #7fcfaf;
+  --accent-ink: #0d1f18;
+  --accent-soft: #1f342b;
+  --in: #7fd3a0;
+  --out: #f0a093;
+  --warn: #f2c46b;
+  --warn-soft: #3a2e14;
+  --danger: #ff9b8f;
+  --danger-soft: #3b1d1a;
+  --focus: #8ab8ff;
+  --chart: #28a874;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--border);
+  --color-ink: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-in: var(--in);
+  --color-out: var(--out);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+
+/* Tabular figures keep amounts aligned. */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Visible focus for keyboard users everywhere. */
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* 16px+ inputs stop iOS Safari from zooming on focus. */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Fieldsets default to min-width: min-content, which lets wide children (the
+   scrolling type chips) push the page wider than the phone screen. */
+fieldset {
+  min-width: 0;
 }

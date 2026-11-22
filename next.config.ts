@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
+// HTTPS-only headers are sent when the configured app URL is https (Vercel), not for a local http build.
+const isHttps = (process.env.BETTER_AUTH_URL ?? "").startsWith("https://");
 
 // CSP: Next.js App Router injects inline bootstrap scripts, so 'unsafe-inline'
 // is needed for scripts unless we adopt nonces (which forces dynamic rendering of
@@ -20,7 +22,7 @@ const csp = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
-  ...(isDev ? [] : ["upgrade-insecure-requests"]),
+  ...(isHttps ? ["upgrade-insecure-requests"] : []),
 ].join("; ");
 
 const securityHeaders = [
@@ -31,7 +33,7 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
-  ...(isDev ? [] : [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }]),
+  ...(isHttps ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }] : []),
 ];
 
 const nextConfig: NextConfig = {

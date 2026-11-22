@@ -22,6 +22,11 @@ export function env(): ServerEnv {
     const names = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
     throw new Error(`Invalid or missing server environment variables: ${names}`);
   }
+  const u = new URL(parsed.data.BETTER_AUTH_URL);
+  const local = u.hostname === "localhost" || u.hostname === "127.0.0.1";
+  if (parsed.data.NODE_ENV === "production" && u.protocol !== "https:" && !local) {
+    throw new Error("BETTER_AUTH_URL must use https:// in production");
+  }
   cached = parsed.data;
   return cached;
 }

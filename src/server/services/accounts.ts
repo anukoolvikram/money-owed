@@ -25,7 +25,7 @@ export async function listAccounts(db: Exec, owner: OwnerContext, opts: { includ
     .select()
     .from(accounts)
     .where(and(eq(accounts.ownerId, owner.ownerId), opts.includeArchived ? undefined : isNull(accounts.archivedAt)))
-    .orderBy(asc(accounts.archivedAt), asc(accounts.createdAt));
+    .orderBy(asc(accounts.archivedAt), asc(accounts.createdAt), asc(accounts.id));
   const balances = await accountBalances(db, owner.ownerId);
   return rows.map((a) => ({
     id: a.id,

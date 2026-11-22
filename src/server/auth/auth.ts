@@ -15,7 +15,8 @@ export function auth(): Auth {
     baseURL: e.BETTER_AUTH_URL,
     trustedOrigins: trustedOrigins(),
     clientIpHeader: e.AUTH_CLIENT_IP_HEADER || undefined,
-    production: e.NODE_ENV === "production",
+    // Secure cookies whenever the app is served over HTTPS (always in real deployments).
+    production: e.BETTER_AUTH_URL.startsWith("https://"),
   });
   return _auth;
 }

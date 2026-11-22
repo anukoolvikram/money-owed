@@ -43,7 +43,7 @@ export async function listPeople(
       ${opts.includeArchived ? sql`` : sql`AND p.archived_at IS NULL`}
       ${q ? sql`AND (p.name ILIKE ${"%" + escapeLike(q) + "%"} ESCAPE '\\' OR p.label ILIKE ${"%" + escapeLike(q) + "%"} ESCAPE '\\')` : sql``}
     GROUP BY p.id
-    ORDER BY p.archived_at NULLS FIRST, lower(p.name), p.created_at`);
+    ORDER BY p.archived_at NULLS FIRST, lower(p.name), lower(p.label) NULLS FIRST, p.created_at, p.id`);
   let rows = res.rows.map((r) => ({
     id: r.id,
     name: r.name,
