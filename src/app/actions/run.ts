@@ -1,5 +1,5 @@
 import "server-only";
-import { refresh } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import { requireOwner } from "@/server/auth/guard";
 import type { OwnerContext } from "@/server/auth/owner";
 import { db } from "@/server/db/client";
@@ -19,7 +19,13 @@ export async function runAction<T>(
     await assertSameOrigin();
     const owner = await requireOwner();
     const data = await fn(db(), owner);
-    if (opts.refresh !== false) refresh();
+    if (opts.refresh !== false) {
+      // Every page shows derived balances, so a change can affect all of them.
+      // Clear the browser's cached copies of other pages (so going back to Home
+      // never shows old numbers) and re-render the current page.
+      revalidatePath("/", "layout");
+      refresh();
+    }
     return { ok: true, data, message: opts.message };
   } catch (e) {
     return toActionError(e);

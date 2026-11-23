@@ -1,7 +1,7 @@
 "use client";
 // Small client-side building blocks: fields, pending buttons, confirm dialog.
 import { useEffect, useId, useRef, type ComponentProps, type ReactNode } from "react";
-import { buttonClass, cx } from "./ui";
+import { buttonClass, cx, Spinner } from "./ui";
 
 export function Field({
   label,
@@ -61,15 +61,23 @@ export function Select({ error, className, children, ...p }: ComponentProps<"sel
 
 export function Button({
   pending,
+  pendingLabel = "Saving…",
   variant = "primary",
   size = "md",
   className,
   children,
   ...p
-}: ComponentProps<"button"> & { pending?: boolean; variant?: "primary" | "secondary" | "ghost" | "danger"; size?: "md" | "lg" }) {
+}: ComponentProps<"button"> & { pending?: boolean; pendingLabel?: string; variant?: "primary" | "secondary" | "ghost" | "danger"; size?: "md" | "lg" }) {
   return (
     <button {...p} disabled={p.disabled || pending} aria-busy={pending || undefined} className={cx(buttonClass(variant, size), className)}>
-      {pending ? <span>Saving…</span> : children}
+      {pending ? (
+        <>
+          <Spinner size={18} />
+          <span>{pendingLabel}</span>
+        </>
+      ) : (
+        children
+      )}
     </button>
   );
 }
@@ -84,6 +92,7 @@ export function ConfirmDialog({
   onCancel,
   danger,
   pending,
+  pendingLabel,
 }: {
   open: boolean;
   title: string;
@@ -93,6 +102,7 @@ export function ConfirmDialog({
   onCancel: () => void;
   danger?: boolean;
   pending?: boolean;
+  pendingLabel?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -121,7 +131,7 @@ export function ConfirmDialog({
           <Button type="button" variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
-          <Button type="button" variant={danger ? "danger" : "primary"} onClick={onConfirm} pending={pending}>
+          <Button type="button" variant={danger ? "danger" : "primary"} onClick={onConfirm} pending={pending} pendingLabel={pendingLabel}>
             {confirmLabel}
           </Button>
         </div>

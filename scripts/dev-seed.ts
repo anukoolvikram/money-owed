@@ -13,7 +13,7 @@ import { addDays, cycleFor, todayIn } from "../src/lib/dates";
 
 async function main() {
   loadEnvFile();
-  const host = new URL(requireVar("MIGRATION_DATABASE_URL")).hostname;
+  const host = new URL(requireVar("DATABASE_URL")).hostname;
   if (process.env.NODE_ENV === "production" || !["localhost", "127.0.0.1"].includes(host)) {
     console.error("Refusing: dev-seed only runs against a local development database.");
     process.exit(1);
@@ -21,7 +21,7 @@ async function main() {
   const deps = adminDeps();
   try {
     const r = await deps.db.execute<{ user_id: string }>(sql`SELECT user_id FROM app_owner WHERE id = 1`);
-    if (!r.rows[0]) throw new Error("Provision a local owner first (npm run owner:provision).");
+    if (!r.rows[0]) throw new Error("Sign in once first: the owner is created from ADMIN_USERNAME / ADMIN_PASSWORD on first sign-in.");
     const owner = (await resolveOwner(deps.db, r.rows[0].user_id, "seed"))!;
     const has = await deps.db.execute(sql`SELECT 1 FROM accounts WHERE owner_id = ${owner.ownerId} LIMIT 1`);
     if (has.rows.length) throw new Error("Ledger already has data; not seeding again.");

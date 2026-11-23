@@ -17,8 +17,7 @@ async function main() {
   await c.connect();
   await c.query("DROP SCHEMA IF EXISTS public CASCADE; DROP SCHEMA IF EXISTS drizzle CASCADE; CREATE SCHEMA public AUTHORIZATION ledger_admin; REVOKE CREATE ON SCHEMA public FROM PUBLIC;");
   await c.end();
-  const envFile = db === "ledger_test" ? ".env.test" : ".env.local";
+  const envFile = db === "ledger_test" ? ".env.test" : ".env.development.local";
   execSync(`npx tsx --conditions=react-server scripts/migrate.ts`, { stdio: "inherit", env: { ...process.env, LEDGER_ENV_FILE: envFile } });
-  execSync(`npx tsx --conditions=react-server scripts/grant-runtime.ts ledger_app`, { stdio: "inherit", env: { ...process.env, LEDGER_ENV_FILE: envFile } });
 }
 main().catch((e) => { console.error(e.message); process.exit(1); });

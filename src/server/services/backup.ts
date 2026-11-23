@@ -26,8 +26,8 @@ export async function exportBackup(db: Exec, owner: OwnerContext) {
     FROM accounts WHERE owner_id = ${o} ORDER BY created_at, id`);
   const categories = await q<{ id: string; name: string; kind: string; archived: boolean }>(sql`
     SELECT id, name, kind, (archived_at IS NOT NULL) AS archived FROM categories WHERE owner_id = ${o} ORDER BY created_at, id`);
-  const people = await q<{ id: string; name: string; label: string | null; openingIouPaise: string; openingDate: string; archived: boolean }>(sql`
-    SELECT id, name, label, opening_iou_paise::text AS "openingIouPaise", opening_date::text AS "openingDate", (archived_at IS NOT NULL) AS archived
+  const people = await q<{ id: string; name: string; label: string | null; color: string | null; openingIouPaise: string; openingDate: string; archived: boolean }>(sql`
+    SELECT id, name, label, color, opening_iou_paise::text AS "openingIouPaise", opening_date::text AS "openingDate", (archived_at IS NOT NULL) AS archived
     FROM people WHERE owner_id = ${o} ORDER BY created_at, id`);
   const transactions = await q<Record<string, unknown>>(sql`
     SELECT id, type, amount_paise::text AS "amountPaise", txn_date::text AS date, account_id AS "accountId", to_account_id AS "toAccountId",
@@ -89,7 +89,7 @@ const backupSchema = z.object({
   }),
   accounts: z.array(z.object({ id, name: text(60).min(1), kind: z.enum(["cash", "bank", "wallet"]), openingBalancePaise: paise({ signed: true }), openingDate: date, archived: z.boolean() })).max(500),
   categories: z.array(z.object({ id, name: text(40).min(1), kind: z.enum(["expense", "income"]), archived: z.boolean() })).max(500),
-  people: z.array(z.object({ id, name: text(60).min(1), label: text(40).min(1).nullable(), openingIouPaise: paise({ signed: true }), openingDate: date, archived: z.boolean() })).max(2000),
+  people: z.array(z.object({ id, name: text(60).min(1), label: text(40).min(1).nullable(), color: z.string().regex(/^#[0-9a-f]{6}$/).nullable().optional(), openingIouPaise: paise({ signed: true }), openingDate: date, archived: z.boolean() })).max(2000),
   transactions: z.array(z.object({
     id,
     type: z.enum(TXN_TYPES),
@@ -251,8 +251,8 @@ export async function commitRestore(db: DB, owner: OwnerContext, raw: string): P
       await ins(`c:${c.id}`, sql`INSERT INTO categories (owner_id, name, kind, archived_at, created_at)
         VALUES (${o}, ${c.name}, ${c.kind}, ${c.archived ? sql`now()` : null}, ${at(i)}) RETURNING id`);
     for (const [i, p] of b.people.entries())
-      await ins(`p:${p.id}`, sql`INSERT INTO people (owner_id, name, label, opening_iou_paise, opening_date, archived_at, created_at)
-        VALUES (${o}, ${p.name}, ${p.label}, ${p.openingIouPaise}::bigint, ${p.openingDate}, ${p.archived ? sql`now()` : null}, ${at(i)}) RETURNING id`);
+      await ins(`p:${p.id}`, sql`INSERT INTO people (owner_id, name, label, color, opening_iou_paise, opening_date, archived_at, created_at)
+        VALUES (${o}, ${p.name}, ${p.label}, ${p.color ?? null}, ${p.openingIouPaise}::bigint, ${p.openingDate}, ${p.archived ? sql`now()` : null}, ${at(i)}) RETURNING id`);
     const m = (prefix: string, v: string | null) => (v ? map.get(`${prefix}:${v}`)! : null);
     const CHUNK = 500; // batched multi-row inserts: few round trips even on a remote database
     for (let start = 0; start < b.transactions.length; start += CHUNK) {

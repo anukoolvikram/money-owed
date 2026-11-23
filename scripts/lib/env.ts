@@ -1,8 +1,8 @@
-// Terminal-only helpers. Loads .env.local (or the file in LEDGER_ENV_FILE) without printing values.
+// Terminal-only helpers. Loads .env (or the file in LEDGER_ENV_FILE) without printing values.
 import { existsSync, readFileSync } from "node:fs";
 
 export function loadEnvFile(): string {
-  const file = process.env.LEDGER_ENV_FILE ?? ".env.local";
+  const file = process.env.LEDGER_ENV_FILE ?? ".env";
   if (!existsSync(file)) return "(environment only)";
   for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
     const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(line);
@@ -23,7 +23,7 @@ export function requireVar(name: string): string {
   return v;
 }
 
-/** Describes a connection string without its password, for confirmation prompts. */
+/** Describes a connection string without its password, for confirmation messages. */
 export function describeDbUrl(url: string): string {
   try {
     const u = new URL(url);

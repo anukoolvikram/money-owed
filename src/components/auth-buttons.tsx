@@ -14,6 +14,7 @@ export function LogoutButton({ className }: { className?: string }) {
       variant="secondary"
       className={className}
       pending={pending}
+      pendingLabel="Signing out…"
       onClick={async () => {
         setPending(true);
         try {
@@ -56,7 +57,7 @@ export function RevokeAllButton() {
           }
         }}
       >
-        Every session, including this one, will be ended. You will need your passphrase to sign in again.
+        Every session, including this one, will be ended. You will need your password to sign in again.
       </ConfirmDialog>
     </>
   );

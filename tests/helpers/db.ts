@@ -1,6 +1,6 @@
-// Integration-test harness. Connects to the LOCAL test database only:
-// - `db` uses the least-privilege runtime role (ledger_app), like the app
-// - `adminDb` uses the migration role, only for provisioning and cleanup
+// Integration-test harness. Connects to the LOCAL test database only, through the
+// same single DATABASE_URL the app uses. `adminDb`/`adminPool` are aliases kept for
+// readability where a test plays the operator.
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { sql } from "drizzle-orm";
@@ -10,6 +10,7 @@ import { createAuth } from "@/server/auth/config";
 import { provisionOwner } from "@/server/admin/owner-admin";
 import { resolveOwner, type OwnerContext } from "@/server/auth/owner";
 import type { DB } from "@/server/db/client";
+import { deriveAuthSecret } from "@/server/auth/derive";
 
 function assertTestDb(url: string | undefined): string {
   if (!url) throw new Error("Test DB URL missing");
@@ -32,27 +33,31 @@ export type Harness = {
   close: () => Promise<void>;
 };
 
-export function createHarness(): Harness {
-  const appPool = new pg.Pool({ connectionString: assertTestDb(process.env.DATABASE_URL), max: 10 });
-  const adminPool = new pg.Pool({ connectionString: assertTestDb(process.env.MIGRATION_DATABASE_URL), max: 5 });
-  const db = drizzle({ client: appPool, schema });
-  const adminDb = drizzle({ client: adminPool, schema });
-  const base = {
-    secret: process.env.BETTER_AUTH_SECRET!,
-    baseURL: process.env.BETTER_AUTH_URL!,
-    trustedOrigins: [process.env.BETTER_AUTH_URL!],
+export const TEST_ORIGIN = "http://localhost:3000";
+
+export function testAuthBase() {
+  return {
+    secret: deriveAuthSecret(process.env.ADMIN_PASSWORD!, process.env.DATABASE_URL!),
+    baseURL: TEST_ORIGIN,
+    trustedOrigins: [TEST_ORIGIN],
     production: false,
   };
+}
+
+export function createHarness(): Harness {
+  const url = assertTestDb(process.env.DATABASE_URL);
+  const appPool = new pg.Pool({ connectionString: url, max: 10 });
+  const db = drizzle({ client: appPool, schema });
+  const auth = createAuth({ db, ...testAuthBase() });
   return {
     appPool,
-    adminPool,
+    adminPool: appPool,
     db,
-    adminDb,
-    auth: createAuth({ db, ...base }),
-    adminAuth: createAuth({ db: adminDb, ...base }),
+    adminDb: db,
+    auth,
+    adminAuth: auth,
     close: async () => {
       await appPool.end();
-      await adminPool.end();
     },
   };
 }

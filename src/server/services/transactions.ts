@@ -25,6 +25,7 @@ export type TransactionDTO = {
   personId: string | null;
   personName: string | null;
   personLabel: string | null;
+  personColor: string | null;
   note: string | null;
   paymentMethod: PaymentMethod | null;
   version: number;
@@ -143,43 +144,46 @@ export type CreateResult = { id: string; duplicate: boolean; iou: { beforePaise:
 
 export async function createTransaction(db: DB, owner: OwnerContext, raw: unknown): Promise<CreateResult> {
   const input = parseOrThrow(transactionInput, raw);
-  return db.transaction(async (tx) => {
-    // Idempotency: a retry of an already-saved submission returns the original entry.
-    const prior = await tx
+  return db.transaction((tx) => insertTransaction(tx, owner, input));
+}
+
+/** Inserts one validated entry. Must run inside a database transaction. */
+export async function insertTransaction(tx: Exec, owner: OwnerContext, input: TransactionInput): Promise<CreateResult> {
+  // Idempotency: a retry of an already-saved submission returns the original entry.
+  const prior = await tx
+    .select({ id: transactions.id })
+    .from(transactions)
+    .where(and(eq(transactions.ownerId, owner.ownerId), eq(transactions.idempotencyKey, input.idempotencyKey)));
+  if (prior[0]) return { id: prior[0].id, duplicate: true, iou: null };
+
+  const iou = await validateAndCheck(tx, owner, input);
+  const refs = normaliseRefs(input);
+  const inserted = await tx
+    .insert(transactions)
+    .values({
+      ownerId: owner.ownerId,
+      type: input.type,
+      amountPaise: input.amount,
+      txnDate: input.date,
+      ...refs,
+      note: input.note ?? null,
+      idempotencyKey: input.idempotencyKey,
+    })
+    .onConflictDoNothing({ target: [transactions.ownerId, transactions.idempotencyKey] })
+    .returning({ id: transactions.id });
+  if (!inserted[0]) {
+    // A concurrent request with the same key won the race.
+    const again = await tx
       .select({ id: transactions.id })
       .from(transactions)
       .where(and(eq(transactions.ownerId, owner.ownerId), eq(transactions.idempotencyKey, input.idempotencyKey)));
-    if (prior[0]) return { id: prior[0].id, duplicate: true, iou: null };
-
-    const iou = await validateAndCheck(tx, owner, input);
-    const refs = normaliseRefs(input);
-    const inserted = await tx
-      .insert(transactions)
-      .values({
-        ownerId: owner.ownerId,
-        type: input.type,
-        amountPaise: input.amount,
-        txnDate: input.date,
-        ...refs,
-        note: input.note ?? null,
-        idempotencyKey: input.idempotencyKey,
-      })
-      .onConflictDoNothing({ target: [transactions.ownerId, transactions.idempotencyKey] })
-      .returning({ id: transactions.id });
-    if (!inserted[0]) {
-      // A concurrent request with the same key won the race.
-      const again = await tx
-        .select({ id: transactions.id })
-        .from(transactions)
-        .where(and(eq(transactions.ownerId, owner.ownerId), eq(transactions.idempotencyKey, input.idempotencyKey)));
-      return { id: again[0].id, duplicate: true, iou: null };
-    }
-    return {
-      id: inserted[0].id,
-      duplicate: false,
-      iou: iou ? { beforePaise: iou.beforePaise.toString(), afterPaise: iou.afterPaise.toString() } : null,
-    };
-  });
+    return { id: again[0].id, duplicate: true, iou: null };
+  }
+  return {
+    id: inserted[0].id,
+    duplicate: false,
+    iou: iou ? { beforePaise: iou.beforePaise.toString(), afterPaise: iou.afterPaise.toString() } : null,
+  };
 }
 
 const updateSchema = transactionInput.omit({ idempotencyKey: true }).extend({
@@ -235,7 +239,7 @@ export async function deleteTransaction(db: DB, owner: OwnerContext, raw: unknow
 const SELECT_DTO = sql`
   SELECT t.id, t.type, t.amount_paise::text AS amount, t.txn_date::text AS date,
     t.account_id, a.name AS account_name, t.to_account_id, ta.name AS to_account_name,
-    t.category_id, c.name AS category_name, t.person_id, p.name AS person_name, p.label AS person_label,
+    t.category_id, c.name AS category_name, t.person_id, p.name AS person_name, p.label AS person_label, p.color AS person_color,
     t.note, t.payment_method, t.version, t.created_at
   FROM transactions t
   JOIN accounts a ON a.owner_id = t.owner_id AND a.id = t.account_id
@@ -246,7 +250,7 @@ const SELECT_DTO = sql`
 type Row = {
   id: string; type: TxnType; amount: string; date: string; account_id: string; account_name: string;
   to_account_id: string | null; to_account_name: string | null; category_id: string | null; category_name: string | null;
-  person_id: string | null; person_name: string | null; person_label: string | null; note: string | null;
+  person_id: string | null; person_name: string | null; person_label: string | null; person_color: string | null; note: string | null;
   payment_method: PaymentMethod | null; version: number; created_at: Date | string;
 };
 
@@ -265,6 +269,7 @@ function toDTO(r: Row): TransactionDTO {
     personId: r.person_id,
     personName: r.person_name,
     personLabel: r.person_label,
+    personColor: r.person_color,
     note: r.note,
     paymentMethod: r.payment_method,
     version: r.version,

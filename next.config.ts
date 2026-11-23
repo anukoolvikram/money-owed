@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
-// HTTPS-only headers are sent when the configured app URL is https (Vercel), not for a local http build.
-const isHttps = (process.env.BETTER_AUTH_URL ?? "").startsWith("https://");
+// HTTPS-only headers (HSTS, upgrade-insecure-requests) on Vercel or an https APP_URL.
+const isHttps = process.env.VERCEL === "1" || (process.env.APP_URL ?? "").startsWith("https://");
 
 // CSP: Next.js App Router injects inline bootstrap scripts, so 'unsafe-inline'
 // is needed for scripts unless we adopt nonces (which forces dynamic rendering of

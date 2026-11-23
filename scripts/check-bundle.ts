@@ -13,7 +13,7 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 const secrets: string[] = [];
-for (const file of [".env.local", ".env.test", ".env.production", ".env"]) {
+for (const file of [".env", ".env.local", ".env.test", ".env.development.local", ".env.production", ".env.production.local"]) {
   if (!existsSync(file)) continue;
   for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
     const m = /^\s*([A-Z0-9_]+)\s*=\s*"?(.*?)"?\s*$/.exec(line);
@@ -23,9 +23,8 @@ for (const file of [".env.local", ".env.test", ".env.production", ".env"]) {
 const patterns: (string | RegExp)[] = [
   ...secrets,
   /postgres(ql)?:\/\//i,
-  "BETTER_AUTH_SECRET",
   "DATABASE_URL",
-  "MIGRATION_DATABASE_URL",
+  "ADMIN_PASSWORD",
   "fictional test passphrase",
   "fictional e2e passphrase",
   "$scrypt",

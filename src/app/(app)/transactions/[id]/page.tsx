@@ -6,6 +6,9 @@ import { getTransaction } from "@/server/services/transactions";
 import { getEntryFormData } from "@/server/services/form-data";
 import { ServiceError } from "@/server/services/errors";
 import { EntryForm } from "@/components/entry-form";
+import { QuickIou } from "@/components/quick-iou";
+import { listPeople } from "@/server/services/people";
+import { ownerToday } from "@/server/services/settings";
 import { Main, PageHeader } from "@/components/ui";
 import { paiseToInput } from "@/lib/money";
 import { iouDelta } from "@/lib/txn-types";
@@ -21,6 +24,24 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
   } catch (e) {
     if (e instanceof ServiceError && e.code === "not_found") notFound();
     throw e;
+  }
+  if ((t.type === "lend" || t.type === "borrow") && t.personId) {
+    const [people, today] = await Promise.all([listPeople(db(), owner), ownerToday(db(), owner)]);
+    // Keep the entry's own person in the list even if they were archived since.
+    const options = people.some((p) => p.id === t.personId) ? people : [...people, { id: t.personId, name: t.personName ?? "?", label: t.personLabel }];
+    const back = `/people/${t.personId}`;
+    return (
+      <>
+        <PageHeader title="Edit" back={back} />
+        <Main>
+          <QuickIou
+            today={today}
+            people={options.map((p) => ({ id: p.id, name: p.name, label: p.label }))}
+            editing={{ id: t.id, version: t.version, type: t.type, amount: paiseToInput(BigInt(t.amountPaise)), date: t.date, note: t.note ?? "", personId: t.personId, back }}
+          />
+        </Main>
+      </>
+    );
   }
   const data = await getEntryFormData(db(), owner, { accountIds: [t.accountId, t.toAccountId], categoryId: t.categoryId, personId: t.personId });
   return (

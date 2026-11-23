@@ -7,7 +7,7 @@ import { nextCookies } from "better-auth/next-js";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import type { DB } from "../db/client";
 import * as schema from "../db/schema";
-import { checkPassphrase, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "./password-policy";
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "./password-policy";
 import {
   checkLoginThrottle,
   recordLoginFailure,
@@ -22,7 +22,6 @@ export const ENABLED_AUTH_PATHS = [
   "/sign-in/email",
   "/sign-out",
   "/get-session",
-  "/change-password",
   "/revoke-sessions",
   "/revoke-other-sessions",
   "/ok",
@@ -46,6 +45,11 @@ export type AuthConfigInput = {
   /** Header that the hosting platform sets with the real client IP (e.g. x-vercel-forwarded-for). */
   clientIpHeader?: string;
   production: boolean;
+  /**
+   * Runs before every sign-in attempt. The app uses it to create or update the owner
+   * from ADMIN_USERNAME / ADMIN_PASSWORD. Throwing an APIError rejects the sign-in.
+   */
+  beforeSignIn?: () => Promise<void>;
 };
 
 export function createAuth(cfg: AuthConfigInput) {
@@ -80,7 +84,6 @@ export function createAuth(cfg: AuthConfigInput) {
       max: 60,
       customRules: {
         "/sign-in/email": { window: 300, max: 10 },
-        "/change-password": { window: 300, max: 5 },
       },
     },
     advanced: {
@@ -107,10 +110,7 @@ export function createAuth(cfg: AuthConfigInput) {
               message: "Too many sign-in attempts. Please wait and try again.",
             }, { "X-Retry-After": String(remaining) });
           }
-        }
-        if (ctx.path === "/change-password") {
-          const res = checkPassphrase(ctx.body?.newPassword, { email: ctx.context.session?.user.email });
-          if (!res.ok) throw new APIError("BAD_REQUEST", { message: res.error });
+          await cfg.beforeSignIn?.();
         }
       }),
       after: createAuthMiddleware(async (ctx) => {

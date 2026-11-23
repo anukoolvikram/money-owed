@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button, Field, TextInput } from "@/components/client";
+import { ownerEmailFromUsername } from "@/lib/owner-login";
 
 export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +19,7 @@ export function LoginForm() {
         method: "POST",
         headers: { "content-type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ email: fd.get("email"), password: fd.get("password"), rememberMe: true }),
+        body: JSON.stringify({ email: ownerEmailFromUsername(String(fd.get("username") ?? "")), password: fd.get("password"), rememberMe: true }),
       });
       if (res.ok) {
         window.location.replace("/");
@@ -27,8 +28,11 @@ export function LoginForm() {
       if (res.status === 429) {
         const wait = Number(res.headers.get("x-retry-after") ?? "");
         setError(`Too many attempts. Please wait${wait > 0 ? ` ${Math.ceil(wait / 60)} minute${wait > 60 ? "s" : ""}` : " a little"} and try again.`);
+      } else if (res.status === 503) {
+        const body = await res.json().catch(() => null);
+        setError(typeof body?.message === "string" ? body.message : "Sign-in is not available right now.");
       } else {
-        setError("Email or passphrase is incorrect.");
+        setError("Username or password is incorrect.");
       }
     } catch {
       setError("Could not reach the server. Check your connection and try again.");
@@ -38,10 +42,10 @@ export function LoginForm() {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4" noValidate>
-      <Field label="Email" htmlFor="email">
-        <TextInput id="email" name="email" type="email" autoComplete="username" inputMode="email" autoCapitalize="none" required />
+      <Field label="Username" htmlFor="username">
+        <TextInput id="username" name="username" type="text" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} required maxLength={100} />
       </Field>
-      <Field label="Passphrase" htmlFor="password">
+      <Field label="Password" htmlFor="password">
         <TextInput id="password" name="password" type="password" autoComplete="current-password" required maxLength={128} />
       </Field>
       {error && (
@@ -49,7 +53,7 @@ export function LoginForm() {
           {error}
         </p>
       )}
-      <Button type="submit" size="lg" className="w-full" pending={pending}>
+      <Button type="submit" size="lg" className="w-full" pending={pending} pendingLabel="Signing in…">
         Sign in
       </Button>
     </form>

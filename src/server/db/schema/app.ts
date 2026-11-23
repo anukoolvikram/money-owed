@@ -134,6 +134,8 @@ export const people = pgTable(
     name: text("name").notNull(),
     /** Optional distinguishing label, e.g. "college" — names need not be unique. */
     label: text("label"),
+    /** Colour tag (#rrggbb from the app palette). Null = derived from the id. */
+    color: text("color"),
     /** Signed: positive = they owed me at the opening date; negative = I owed them. */
     openingIouPaise: bigint("opening_iou_paise", { mode: "bigint" }).notNull().default(sql`0`),
     openingDate: date("opening_date", { mode: "string" }).notNull(),
@@ -146,6 +148,7 @@ export const people = pgTable(
     index("people_owner_idx").on(t.ownerId),
     check("people_name_len", sql`char_length(${t.name}) BETWEEN 1 AND 60`),
     check("people_label_len", sql`${t.label} IS NULL OR char_length(${t.label}) BETWEEN 1 AND 40`),
+    check("people_color_hex", sql`${t.color} IS NULL OR ${t.color} ~ '^#[0-9a-f]{6}$'`),
     check("people_opening_range", sql`abs(${t.openingIouPaise}) <= ${MAX_PAISE}`),
   ],
 );

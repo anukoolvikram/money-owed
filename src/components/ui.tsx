@@ -26,6 +26,19 @@ export function PageHeader({ title, back, action, subtitle }: { title: string; b
   );
 }
 
+/** Circular loading indicator. Uses the current text colour. */
+export function Spinner({ size = 18, className, label }: { size?: number; className?: string; label?: string }) {
+  return (
+    <span
+      role={label ? "status" : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+      style={{ width: size, height: size, borderWidth: Math.max(2, Math.round(size / 9)) }}
+      className={cx("inline-block shrink-0 animate-spin rounded-full border-current border-r-transparent motion-reduce:animate-[spin_1.5s_linear_infinite]", className)}
+    />
+  );
+}
+
 export function Card({ className, ...p }: ComponentProps<"section">) {
   return <section className={cx("rounded-2xl border border-line bg-surface p-4", className)} {...p} />;
 }

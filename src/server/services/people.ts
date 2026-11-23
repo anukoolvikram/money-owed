@@ -9,11 +9,13 @@ import { notFound, ServiceError, stale, validation } from "./errors";
 import { parseOrThrow } from "./util";
 import { ownerToday } from "./settings";
 import type { TxnType } from "@/lib/txn-types";
+import { isPersonColor, pickNewPersonColor } from "@/lib/person-color";
 
 export type PersonDTO = {
   id: string;
   name: string;
   label: string | null;
+  color: string | null;
   openingIouPaise: string;
   openingDate: string;
   netPaise: string;
@@ -31,10 +33,10 @@ export async function listPeople(
 ): Promise<PersonDTO[]> {
   const q = opts.q?.trim();
   const res = await db.execute<{
-    id: string; name: string; label: string | null; opening: string; opening_date: string;
+    id: string; name: string; label: string | null; color: string | null; opening: string; opening_date: string;
     net: string; archived: boolean; version: number; last_date: string | null;
   }>(sql`
-    SELECT p.id, p.name, p.label, p.opening_iou_paise::text AS opening, p.opening_date::text AS opening_date,
+    SELECT p.id, p.name, p.label, p.color, p.opening_iou_paise::text AS opening, p.opening_date::text AS opening_date,
       (p.opening_iou_paise + COALESCE(SUM(${IOU_DELTA}), 0))::text AS net,
       (p.archived_at IS NOT NULL) AS archived, p.version, max(t.txn_date)::text AS last_date
     FROM people p
@@ -48,6 +50,7 @@ export async function listPeople(
     id: r.id,
     name: r.name,
     label: r.label,
+    color: r.color,
     openingIouPaise: r.opening,
     openingDate: r.opening_date,
     netPaise: r.net,
@@ -123,7 +126,7 @@ export async function createPerson(db: DB, owner: OwnerContext, raw: unknown): P
   if (input.openingDate > today) throw validation("The as-of date cannot be in the future.", { openingDate: "Cannot be in the future" });
   const [row] = await db
     .insert(people)
-    .values({ ownerId: owner.ownerId, name: input.name, label: input.label ?? null, openingIouPaise: input.openingIou, openingDate: input.openingDate })
+    .values({ ownerId: owner.ownerId, name: input.name, label: input.label ?? null, color: await newPersonColor(db, owner), openingIouPaise: input.openingIou, openingDate: input.openingDate })
     .returning({ id: people.id });
   return row;
 }
@@ -204,4 +207,34 @@ export async function deletePerson(db: DB, owner: OwnerContext, id: string): Pro
     const res = await tx.delete(people).where(and(eq(people.id, id), eq(people.ownerId, owner.ownerId))).returning({ id: people.id });
     if (!res.length) throw notFound("Person");
   });
+}
+
+/** Removes a person together with all of their transactions. Balances are derived, so they update on their own. */
+export async function removePerson(db: DB, owner: OwnerContext, id: string): Promise<{ deletedEntries: number }> {
+  if (!uuid.safeParse(id).success) throw notFound("Person");
+  return db.transaction(async (tx) => {
+    const found = await tx.select({ id: people.id }).from(people).where(and(eq(people.id, id), eq(people.ownerId, owner.ownerId))).for("update");
+    if (!found.length) throw notFound("Person");
+    const entries = await tx.execute(sql`DELETE FROM transactions WHERE owner_id = ${owner.ownerId} AND person_id = ${id} RETURNING id`);
+    await tx.delete(openingChanges).where(and(eq(openingChanges.ownerId, owner.ownerId), eq(openingChanges.subjectId, id)));
+    await tx.delete(people).where(and(eq(people.id, id), eq(people.ownerId, owner.ownerId)));
+    return { deletedEntries: entries.rows.length };
+  });
+}
+
+/** Picks a colour tag that the owner's active people use least, so people look different. */
+export async function newPersonColor(db: Exec, owner: OwnerContext): Promise<string> {
+  const res = await db.execute<{ color: string | null }>(sql`SELECT color FROM people WHERE owner_id = ${owner.ownerId} AND archived_at IS NULL`);
+  return pickNewPersonColor(res.rows.map((r) => r.color));
+}
+
+/** Changes a person's colour tag. Only colours from the app palette are allowed. */
+export async function setPersonColor(db: DB, owner: OwnerContext, raw: unknown): Promise<void> {
+  const input = parseOrThrow(z.object({ id: uuid, color: z.string().refine(isPersonColor, { message: "Choose one of the colours." }) }), raw);
+  const res = await db
+    .update(people)
+    .set({ color: input.color, updatedAt: new Date() })
+    .where(and(eq(people.id, input.id), eq(people.ownerId, owner.ownerId)))
+    .returning({ id: people.id });
+  if (!res.length) throw notFound("Person");
 }

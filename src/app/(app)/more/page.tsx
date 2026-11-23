@@ -1,3 +1,4 @@
+import { displayUsername } from "@/lib/owner-login";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
@@ -12,7 +13,7 @@ const links = [
   { href: "/more/categories", label: "Categories", sub: "Expense and income categories" },
   { href: "/more/budgets", label: "Budgets", sub: "Overall and category limits per cycle" },
   { href: "/more/settings", label: "Settings", sub: "Timezone, budget start day, theme" },
-  { href: "/more/security", label: "Security", sub: "Passphrase and sessions" },
+  { href: "/more/security", label: "Security", sub: "Login and sessions" },
   { href: "/more/data", label: "Export, import & backup", sub: "CSV and full JSON backup" },
   { href: "/more/help", label: "Help", sub: "How entries work, Add to Home Screen" },
 ];
@@ -21,7 +22,7 @@ export default async function MorePage() {
   const owner = await requireOwnerPage();
   return (
     <>
-      <PageHeader title="More" subtitle={owner.email} />
+      <PageHeader title="More" subtitle={displayUsername(owner.email)} />
       <Main>
         <Card className="p-1">
           <ul className="divide-y divide-line">

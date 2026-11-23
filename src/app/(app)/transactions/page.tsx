@@ -8,6 +8,8 @@ import { listCategories } from "@/server/services/categories";
 import { listPeople } from "@/server/services/people";
 import { Card, EmptyState, LinkButton, Main, PageHeader } from "@/components/ui";
 import { TxnRow } from "@/components/txn-row";
+import { FreshData } from "@/components/fresh-data";
+import { dataStamp } from "@/server/stamp";
 import { TXN_LABELS, TXN_TYPES } from "@/lib/txn-types";
 
 export const metadata: Metadata = { title: "Entries" };
@@ -28,7 +30,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   const nextParams = new URLSearchParams(Object.entries({ ...f, cursor: list.nextCursor ?? undefined }).filter(([, v]) => v) as [string, string][]);
 
   return (
-    <>
+    <FreshData stamp={dataStamp(list.items.map((t) => [t.id, t.version]))}>
       <PageHeader title="Entries" action={<LinkButton href="/add" variant="ghost">Add</LinkButton>} />
       <Main>
         {/* GET form: filtering only reads data. */}
@@ -96,6 +98,6 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
           )}
         </div>
       </Main>
-    </>
+    </FreshData>
   );
 }

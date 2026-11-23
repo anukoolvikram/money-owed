@@ -6,27 +6,12 @@ import { iouTotals } from "@/server/services/ledger-sql";
 import { needsCrossZeroConfirm } from "@/server/services/transactions";
 import { budgetStatus } from "@/server/services/budgets";
 
-describe("passphrase policy", () => {
-  it("requires 15+ characters, allows spaces, unicode and 64+ chars", () => {
-    expect(checkPassphrase("short pass").ok).toBe(false);
-    expect(checkPassphrase("purple tiger eats mango").ok).toBe(true);
-    expect(checkPassphrase("नमस्ते दुनिया बारिश हरी चाय").ok).toBe(true);
-    const long = "correct staple horse battery ".repeat(3).trim(); // > 64 chars
-    expect(long.length).toBeGreaterThan(64);
-    expect(checkPassphrase(long).ok).toBe(true);
-  });
-  it("rejects over-length input without truncating", () => {
-    const tooLong = "a quiet river bends ".repeat(10); // 200 chars
-    const r = checkPassphrase(tooLong);
-    expect(r.ok).toBe(false);
-  });
-  it("rejects common passwords and simple variants", () => {
-    for (const p of ["123456789987654321", "1qaz2wsx3edc4rfv", "qazwsxedcrfvtgb", "password password", "passwordpassword1", "aaaaaaaaaaaaaaaaaaaa", "abababababababab"]) {
-      expect(checkPassphrase(p).ok, p).toBe(false);
-    }
-  });
-  it("rejects a passphrase containing the email name", () => {
-    expect(checkPassphrase("riya.sharma loves long walks", { email: "riya.sharma@example.com" }).ok).toBe(false);
+describe("password policy", () => {
+  it("accepts any non-empty password up to the max length", () => {
+    expect(checkPassphrase("a").ok).toBe(true);
+    expect(checkPassphrase("123456").ok).toBe(true);
+    expect(checkPassphrase("").ok).toBe(false);
+    expect(checkPassphrase("x".repeat(129)).ok).toBe(false);
   });
 });
 

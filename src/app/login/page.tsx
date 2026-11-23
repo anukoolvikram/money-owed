@@ -15,9 +15,6 @@ export default async function LoginPage() {
         <p className="mt-1 text-muted">Private. Sign in to continue.</p>
       </div>
       <LoginForm />
-      <p className="mt-8 text-xs text-muted">
-        Forgot your passphrase? There is no email reset. The app operator can reset it from a trusted terminal using the recovery command described in the README.
-      </p>
     </main>
   );
 }

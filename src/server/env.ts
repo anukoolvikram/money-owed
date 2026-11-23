@@ -1,16 +1,21 @@
 import "server-only";
 import { z } from "zod";
+import { deriveAuthSecret, resolveAppUrl, resolveClientIpHeader, resolveTrustedOrigins } from "./auth/derive";
 
+// The only variables you set: DATABASE_URL, ADMIN_USERNAME, ADMIN_PASSWORD.
+// Everything else is derived (see ./auth/derive.ts).
 const schema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
-  BETTER_AUTH_URL: z.url(),
-  TRUSTED_ORIGINS: z.string().optional(),
-  AUTH_CLIENT_IP_HEADER: z.string().optional(),
+  ADMIN_USERNAME: z.string().trim().min(1, "ADMIN_USERNAME is required").max(100),
+  ADMIN_PASSWORD: z.string().min(1, "ADMIN_PASSWORD is required").max(128),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 
-export type ServerEnv = z.infer<typeof schema>;
+export type ServerEnv = z.infer<typeof schema> & {
+  appUrl: string;
+  authSecret: string;
+  clientIpHeader?: string;
+};
 
 let cached: ServerEnv | undefined;
 
@@ -22,23 +27,21 @@ export function env(): ServerEnv {
     const names = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
     throw new Error(`Invalid or missing server environment variables: ${names}`);
   }
-  const u = new URL(parsed.data.BETTER_AUTH_URL);
+  const appUrl = resolveAppUrl();
+  const u = new URL(appUrl);
   const local = u.hostname === "localhost" || u.hostname === "127.0.0.1";
   if (parsed.data.NODE_ENV === "production" && u.protocol !== "https:" && !local) {
-    throw new Error("BETTER_AUTH_URL must use https:// in production");
+    throw new Error("The app URL must use https:// in production");
   }
-  cached = parsed.data;
+  cached = {
+    ...parsed.data,
+    appUrl,
+    authSecret: deriveAuthSecret(parsed.data.ADMIN_PASSWORD, parsed.data.DATABASE_URL),
+    clientIpHeader: resolveClientIpHeader(),
+  };
   return cached;
 }
 
-/** Exact origins allowed to make cookie-authenticated requests. No wildcards. */
 export function trustedOrigins(): string[] {
-  const e = env();
-  const extra = (e.TRUSTED_ORIGINS ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const all = [new URL(e.BETTER_AUTH_URL).origin, ...extra.map((o) => new URL(o).origin)];
-  for (const o of all) if (o.includes("*")) throw new Error("Wildcard trusted origins are not allowed");
-  return [...new Set(all)];
+  return resolveTrustedOrigins();
 }

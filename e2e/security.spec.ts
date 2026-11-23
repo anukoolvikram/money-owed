@@ -39,11 +39,11 @@ test("13. logged-out access is denied without leaking data", async ({ page, requ
 
 test("14. public sign-up and reset routes do not exist", async ({ request }) => {
   const origin = { origin: "http://localhost:3100" };
-  for (const p of ["/api/auth/sign-up/email", "/api/auth/request-password-reset", "/api/auth/reset-password", "/api/auth/update-user", "/api/auth/delete-user"]) {
+  for (const p of ["/api/auth/sign-up/email", "/api/auth/request-password-reset", "/api/auth/reset-password", "/api/auth/change-password", "/api/auth/update-user", "/api/auth/delete-user"]) {
     const r = await request.post(p, { data: { email: "x@example.test", password: "another long passphrase", name: "X" }, headers: origin });
     expect(r.status(), p).toBe(404);
   }
-  // Signing in still works only for the provisioned owner.
+  // Signing in still works for the owner configured in the environment.
   const ok = await request.post("/api/auth/sign-in/email", { data: { email: OWNER_EMAIL, password: OWNER_PASS }, headers: origin });
   expect(ok.status()).toBe(200);
 });

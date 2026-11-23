@@ -75,7 +75,7 @@ export function PersonForm({ today, person, onDone }: { today: string; person?: 
     start(async () => {
       const r = await deletePersonAction(person.id);
       setConfirmDelete(false);
-      if (r.ok) router.push("/people");
+      if (r.ok) router.push("/");
       else setStatus({ tone: "error", text: r.message });
     });
   }

@@ -4,6 +4,7 @@ import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { pg } from "./pg-types";
 import * as schema from "./schema";
 import { env } from "../env";
+import { strictSslUrl } from "@/lib/db-url";
 
 export type DB = NodePgDatabase<typeof schema>;
 
@@ -13,11 +14,15 @@ declare global {
 
 function createPool(): pg.Pool {
   const pool = new pg.Pool({
-    connectionString: env().DATABASE_URL,
+    connectionString: strictSslUrl(env().DATABASE_URL),
     // Small pool: Fluid compute reuses instances; Neon's pooler (PgBouncer) multiplexes.
     max: 5,
-    idleTimeoutMillis: 5_000,
-    connectionTimeoutMillis: 10_000,
+    // Opening a connection to a distant database takes seconds (TLS + auth round
+    // trips), so keep idle connections around instead of reopening one for nearly
+    // every click. On Vercel, attachDatabasePool still closes them before suspend.
+    idleTimeoutMillis: 10 * 60_000,
+    keepAlive: true,
+    connectionTimeoutMillis: 15_000,
   });
   pool.on("error", () => {
     // Never log connection strings or query parameters.
